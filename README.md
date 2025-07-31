@@ -56,7 +56,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  flutter_smartdio: ^1.0.0
+  flutter_smartdio: ^1.0.1
 ```
 
 Then run:
@@ -71,19 +71,42 @@ flutter pub get
 
 ```dart
 import 'package:flutter_smartdio/flutter_smartdio.dart';
-import 'package:dio/dio.dart';
 
-// Initialize with any HTTP client
+// Initialize with built-in dart:io HttpClient (default)
 final client = SmartDioClient(
-  adapter: DioClientAdapter(dioInstance: Dio()),
+  adapter: HttpClientAdapterImpl(),
   config: const SmartDioConfig(
-    defaultTimeout: Duration(seconds: 10),
+    defaultTimeout: Duration(seconds: 30),
     cachePolicy: CachePolicy.networkFirst(
       ttl: Duration(minutes: 5),
     ),
     enableMetrics: true,
+    enableRequestQueue: true,
   ),
   cacheStore: HiveCacheStore(), // Persistent cache
+);
+
+// Or use with Dio
+import 'package:dio/dio.dart';
+final dioClient = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  config: const SmartDioConfig(
+    defaultTimeout: Duration(seconds: 30),
+    retryPolicy: RetryPolicy.exponentialBackoff(
+      maxAttempts: 3,
+      initialDelay: Duration(milliseconds: 500),
+    ),
+    cachePolicy: CachePolicy.networkFirst(ttl: Duration(minutes: 10)),
+    logLevel: LogLevel.debug,
+    enableMetrics: true,
+    enableDeduplication: true,
+    enableRequestQueue: true,
+  ),
+  cacheStore: HiveCacheStore(),
+  requestQueue: RequestQueue(
+    storage: MemoryQueueStorage(),
+    maxSize: 50,
+  ),
 );
 ```
 
@@ -92,8 +115,8 @@ final client = SmartDioClient(
 ```dart
 // Type-safe GET request
 final response = await client.get<User>(
-  'https://api.example.com/users/1',
-  transformer: (data) => User.fromJson(data),
+  'https://jsonplaceholder.typicode.com/users/1',
+  transformer: (data) => User.fromJson(data as Map<String, dynamic>),
 );
 
 response.fold(
@@ -103,35 +126,74 @@ response.fold(
 
 // POST request with caching
 final postResponse = await client.post<Map<String, dynamic>>(
-  'https://api.example.com/posts',
-  body: {'title': 'Hello World', 'userId': 1},
+  'https://jsonplaceholder.typicode.com/posts',
+  body: {'title': 'Hello World', 'body': 'Test content', 'userId': 1},
   config: const RequestConfig(
     cachePolicy: CachePolicy.networkFirst(ttl: Duration(hours: 1)),
   ),
   transformer: (data) => data as Map<String, dynamic>,
+);
+
+// All HTTP methods are supported
+final putResponse = await client.put<Post>(
+  'https://jsonplaceholder.typicode.com/posts/1',
+  body: updatedPost.toJson(),
+  transformer: (data) => Post.fromJson(data as Map<String, dynamic>),
+);
+
+final patchResponse = await client.patch<Post>(
+  'https://jsonplaceholder.typicode.com/posts/1',
+  body: {'title': 'Updated Title'},
+  transformer: (data) => Post.fromJson(data as Map<String, dynamic>),
+);
+
+final deleteResponse = await client.delete<Map<String, dynamic>>(
+  'https://jsonplaceholder.typicode.com/posts/1',
+  transformer: (data) => data as Map<String, dynamic>? ?? {},
 );
 ```
 
 ### 3. Switch HTTP Clients Seamlessly
 
 ```dart
-// Start with Dio
+// Start with dart:io HttpClient
 final client = SmartDioClient(
-  adapter: DioClientAdapter(dioInstance: Dio()),
-  // ... config
+  adapter: HttpClientAdapterImpl(),
+  config: const SmartDioConfig(
+    defaultTimeout: Duration(seconds: 30),
+    enableMetrics: true,
+  ),
 );
 
-// Switch to HTTP package - same API!
+// Switch to Dio - same API!
 await client.dispose();
+import 'package:dio/dio.dart';
 final newClient = SmartDioClient(
-  adapter: HttpPackageAdapter(httpClient: http.Client()),
-  // ... same config
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  config: const SmartDioConfig(
+    defaultTimeout: Duration(seconds: 30),
+    enableMetrics: true,
+  ),
 );
 
-// Or use dart:io HttpClient
-final httpClient = SmartDioClient(
-  adapter: HttpClientAdapterImpl(client: HttpClient()),
-  // ... same config
+// Or use HTTP package
+import 'package:http/http.dart' as http;
+final httpPackageClient = SmartDioClient(
+  adapter: HttpPackageAdapter(httpClient: http.Client()),
+  config: const SmartDioConfig(
+    defaultTimeout: Duration(seconds: 30),
+    enableMetrics: true,
+  ),
+);
+
+// Or use Chopper
+import 'package:chopper/chopper.dart';
+final chopperClient = SmartDioClient(
+  adapter: ChopperClientAdapter(client: ChopperClient()),
+  config: const SmartDioConfig(
+    defaultTimeout: Duration(seconds: 30),
+    enableMetrics: true,
+  ),
 );
 ```
 
@@ -139,10 +201,10 @@ final httpClient = SmartDioClient(
 
 | Client | Adapter Class | Package |
 |--------|---------------|---------|
+| **dart:io HttpClient** | `HttpClientAdapterImpl` | Built-in (Default) |
 | **Dio** | `DioClientAdapter` | `dio: ^5.8.0` |
 | **HTTP Package** | `HttpPackageAdapter` | `http: ^1.4.0` |
-| **Chopper** | `ChopperClientAdapter` | `chopper: ^7.4.0` |
-| **dart:io HttpClient** | `HttpClientAdapterImpl` | Built-in |
+| **Chopper** | `ChopperClientAdapter` | `chopper: ^8.3.0` |
 
 ## 🎛️ Configuration Options
 
@@ -168,22 +230,29 @@ CachePolicy.none()
 ### Retry Policies
 
 ```dart
-// Exponential backoff
-RetryPolicy.exponentialBackoff(
+// Exponential backoff (default configuration)
+const RetryPolicy.exponentialBackoff(
   maxAttempts: 3,
   initialDelay: Duration(milliseconds: 500),
+  multiplier: 2.0,
+  jitter: true,
 )
 
 // Fixed delay
-RetryPolicy.fixedDelay(
-  maxAttempts: 5,
+const RetryPolicy.fixed(
+  maxAttempts: 3,
   delay: Duration(seconds: 1),
 )
 
 // Custom retry logic
-RetryPolicy.custom((attempt, error) {
-  return attempt < 3 && error is NetworkException;
-})
+final RetryPolicy.custom(
+  maxAttempts: 5,
+  delayCalculator: (attempt) => Duration(seconds: attempt * 2),
+  shouldRetry: (error) => error.type == SmartDioErrorType.network,
+)
+
+// No retry
+const RetryPolicy.none()
 ```
 
 ## 📊 Monitoring & Analytics
@@ -191,18 +260,37 @@ RetryPolicy.custom((attempt, error) {
 ```dart
 // Listen to performance metrics
 client.metrics.events.listen((event) {
-  if (event is RequestCompletedEvent) {
-    print('Request took: ${event.metrics.totalDuration}');
-    print('Success: ${event.metrics.success}');
+  switch (event) {
+    case RequestCompletedEvent(:final metrics):
+      print('Request took: ${metrics.totalDuration.inMilliseconds}ms');
+      print('Success: ${metrics.success}');
+      break;
+    case CacheHitEvent():
+      print('Cache hit occurred');
+      break;
+    case CacheMissEvent():
+      print('Cache miss occurred');
+      break;
   }
 });
 
 // Get real-time statistics
 final cacheMetrics = client.metrics.getCacheMetrics();
-print('Cache hit rate: ${cacheMetrics.hitRate * 100}%');
+print('Cache hit rate: ${(cacheMetrics.hitRate * 100).toStringAsFixed(1)}%');
+print('Cache hits: ${cacheMetrics.hitCount}');
+print('Cache misses: ${cacheMetrics.missCount}');
 
 final successRate = client.metrics.getSuccessRate();
-print('Overall success rate: ${successRate * 100}%');
+print('Overall success rate: ${(successRate * 100).toStringAsFixed(1)}%');
+
+final avgResponseTime = client.metrics.getAverageResponseTime();
+print('Average response time: ${avgResponseTime.inMilliseconds}ms');
+
+// Get queue metrics
+final queueMetrics = client.metrics.getQueueMetrics(client.queue.length);
+print('Queue size: ${queueMetrics.currentSize}');
+print('Queue processed: ${queueMetrics.totalProcessed}');
+print('Queue success rate: ${(queueMetrics.successRate * 100).toStringAsFixed(1)}%');
 ```
 
 ## 🔧 Advanced Usage
@@ -241,15 +329,16 @@ response.fold(
 ### Offline Queue Management
 
 ```dart
-// Enable offline queueing
+// Enable offline queueing (enabled by default)
 final client = SmartDioClient(
-  // ... other config
+  adapter: HttpClientAdapterImpl(),
   config: const SmartDioConfig(
     enableRequestQueue: true,
+    maxQueueSize: 100,
   ),
   requestQueue: RequestQueue(
     storage: MemoryQueueStorage(),
-    maxSize: 100,
+    maxSize: 50,
   ),
 );
 
@@ -259,46 +348,110 @@ client.queue.events.listen((event) {
     case QueueItemAdded():
       print('Request queued for later');
       break;
-    case QueueItemProcessed():
-      print('Queued request completed');
+    case QueueItemRemoved():
+      print('Request removed from queue');
+      break;
+    case QueueItemFailed():
+      print('Queued request failed');
       break;
   }
 });
+
+// Manually control offline mode
+client.connectivity.setManualOfflineMode(true);  // Force offline
+client.connectivity.setManualOfflineMode(false); // Back online
+
+// Check connectivity status
+final connectivityInfo = client.connectivity.currentStatus;
+print('Status: ${connectivityInfo.status}');
+print('Quality: ${connectivityInfo.quality}');
 ```
 
 ## 🧪 Testing
 
-The package includes comprehensive testing utilities:
+SmartDio is designed to be test-friendly with easy mocking:
 
 ```dart
-// Mock adapter for testing
+// Create a mock adapter for testing
+class MockAdapter extends HttpClientAdapter {
+  final Map<String, dynamic> mockResponses;
+  
+  MockAdapter(this.mockResponses);
+  
+  @override
+  Future<SmartDioResponse<T>> execute<T>({
+    required SmartDioRequest request,
+    required T Function(dynamic data) transformer,
+  }) async {
+    final mockData = mockResponses[request.uri.toString()];
+    if (mockData == null) {
+      return SmartDioError<T>(
+        error: Exception('No mock response found'),
+        type: SmartDioErrorType.network,
+        correlationId: request.correlationId,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+    
+    return SmartDioSuccess<T>(
+      data: transformer(mockData),
+      statusCode: 200,
+      correlationId: request.correlationId,
+      timestamp: DateTime.now(),
+      duration: Duration(milliseconds: 100),
+    );
+  }
+  
+  @override
+  Future<void> close() async {}
+}
+
+// Use in tests
 final mockClient = SmartDioClient(
-  adapter: MockHttpAdapter(),
+  adapter: MockAdapter({
+    'https://api.example.com/users/1': {
+      'id': 1,
+      'name': 'Test User',
+      'email': 'test@example.com'
+    }
+  }),
   config: const SmartDioConfig(),
 );
 
-// Test with fake responses
-mockClient.adapter.setResponse('/api/test', {'result': 'success'});
-
-final response = await mockClient.get('/api/test',
-  transformer: (data) => data,
+final response = await mockClient.get<User>(
+  'https://api.example.com/users/1',
+  transformer: (data) => User.fromJson(data as Map<String, dynamic>),
 );
-// Verify response...
 ```
 
-## 📱 Example App
+## 📱 Example Apps
 
-Check out the comprehensive example app in the `/example` folder that demonstrates:
+The package includes two comprehensive example apps:
 
-- **Multi-client switching** with real-time UI updates
-- **All SmartDio features** with interactive testing
-- **Performance monitoring** with live metrics
-- **Cache management** with statistics
-- **Beautiful UI** with material design
+### Main Example (`example/lib/main.dart`)
+- **Multi-HTTP client switching** (Dio, HTTP, Chopper, dart:io HttpClient)
+- **Interactive feature testing** with live UI
+- **Real-time performance metrics** and analytics
+- **Persistent cache management** with Hive
+- **Enhanced logging** with colorful console output
+- **Offline mode simulation** and queue management
+- **Request deduplication** testing
+- **Type-safe API demonstrations**
+
+### Simple API Demo (`example/lib/example2.dart`)
+- **Clean API service implementation**
+- **All HTTP methods** (GET, POST, PUT, PATCH, DELETE)
+- **Type-safe model examples** (User, Post, Comment)
+- **Cache strategies** demonstration
+- **Error handling** patterns
+- **Performance metrics** integration
 
 ```bash
 cd example
-flutter run
+flutter run lib/main.dart        # Interactive multi-client demo
+# or
+flutter run lib/example2.dart    # Simple API demo
 ```
 
 ## 🏛️ Architecture
@@ -353,6 +506,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with ❤️ for the Flutter community
 - Thanks to all HTTP client library authors for their excellent work
 
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/rahulshahDEV/flutter_smartdio)
+- [Issue Tracker](https://github.com/rahulshahDEV/flutter_smartdio/issues)
+- [Changelog](https://github.com/rahulshahDEV/flutter_smartdio/blob/main/CHANGELOG.md)
+
 ---
 
 <div align="center">
@@ -362,337 +521,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 If you find this package helpful, please ⭐ the repository!
 
 </div>
-
-- **Transport Agnostic**: Works with any HTTP client (Dio, http, Chopper, etc.) through adapter pattern
-- **Offline Support**: Automatic request queuing when offline with smart sync
-- **Intelligent Caching**: Multiple cache strategies with TTL and automatic cleanup  
-- **Retry Policies**: Exponential backoff, fixed delay, and custom retry strategies
-- **Never Crashes**: Always returns structured success/error results
-- **Rich Logging**: Sensitive data protection and configurable verbosity
-- **Performance Metrics**: Request timing, success rates, cache performance
-- **Request Deduplication**: Prevent duplicate requests within time windows
-- **Connectivity Awareness**: Real-time network status monitoring
-- **Type Safety**: Full generic support for response transformation
-
-## 🏗️ Architecture
-
-Flutter SmartDio follows a clean, dependency-injectable architecture:
-
-- **Minimal Dependencies**: Only Flutter/Dart core dependencies
-- **Pluggable Components**: Every component is swappable through interfaces
-- **Custom Implementations**: Built natively before considering external packages
-- **Configuration Over Convention**: Highly configurable per-request and globally
-
-## 📦 Installation
-
-Add this to your package's `pubspec.yaml` file:
-
-```yaml
-dependencies:
-  flutter_smartdio: ^1.0.0
-```
-
-## 🎯 Quick Start
-
-### Basic Usage
-
-```dart
-import 'package:flutter_smartdio/flutter_smartdio.dart';
-
-final client = SmartDioClient(
-  adapter: HttpClientAdapterImpl(),
-);
-
-final response = await client.get<Map<String, dynamic>>(
-  'https://api.example.com/users/1',
-  transformer: (data) => data as Map<String, dynamic>,
-);
-
-response.fold(
-  (success) => print('User: ${success.data}'),
-  (error) => print('Error: ${error.error}'),
-);
-```
-
-### Advanced Configuration
-
-```dart
-final config = SmartDioConfig(
-  defaultTimeout: const Duration(seconds: 10),
-  retryPolicy: const RetryPolicy.exponentialBackoff(
-    maxAttempts: 3,
-    initialDelay: Duration(milliseconds: 500),
-  ),
-  cachePolicy: const CachePolicy.networkFirst(
-    ttl: Duration(minutes: 5),
-  ),
-  logLevel: LogLevel.debug,
-);
-
-final client = SmartDioClient(
-  adapter: HttpClientAdapterImpl(),
-  config: config,
-  cacheStore: MemoryCacheStore(),
-  requestQueue: RequestQueue(
-    storage: MemoryQueueStorage(),
-  ),
-);
-```
-
-### Type-Safe Responses
-
-```dart
-class User {
-  final int id;
-  final String name;
-  final String email;
-
-  User({required this.id, required this.name, required this.email});
-
-  factory User.fromJson(Map<String, dynamic> json) => User(
-    id: json['id'],
-    name: json['name'],
-    email: json['email'],
-  );
-}
-
-final response = await client.get<User>(
-  'https://api.example.com/users/1',
-  transformer: (data) => User.fromJson(data as Map<String, dynamic>),
-);
-
-response.fold(
-  (success) => print('User: ${success.data.name}'),
-  (error) => print('Failed: ${error.error}'),
-);
-```
-
-## 🔄 Retry Policies
-
-### Exponential Backoff
-```dart
-const retryPolicy = RetryPolicy.exponentialBackoff(
-  maxAttempts: 3,
-  initialDelay: Duration(milliseconds: 500),
-  multiplier: 2.0,
-  jitter: true,
-);
-```
-
-### Fixed Delay
-```dart
-const retryPolicy = RetryPolicy.fixed(
-  maxAttempts: 3,
-  delay: Duration(seconds: 1),
-);
-```
-
-### Custom Logic
-```dart
-final retryPolicy = RetryPolicy.custom(
-  maxAttempts: 5,
-  delayCalculator: (attempt) => Duration(seconds: attempt * 2),
-  shouldRetry: (error) => error.type == SmartDioErrorType.network,
-);
-```
-
-## 💾 Caching Strategies
-
-### Network First
-```dart
-const cachePolicy = CachePolicy.networkFirst(
-  ttl: Duration(minutes: 5),
-);
-```
-
-### Cache First
-```dart
-const cachePolicy = CachePolicy.cacheFirst(
-  ttl: Duration(hours: 1),
-);
-```
-
-### Cache Only / Network Only
-```dart
-const cacheOnly = CachePolicy.cacheOnly();
-const networkOnly = CachePolicy.networkOnly();
-```
-
-## 📱 Offline Support
-
-SmartDio automatically queues requests when offline:
-
-```dart
-// Enable request queuing
-final client = SmartDioClient(
-  adapter: HttpClientAdapterImpl(),
-  config: const SmartDioConfig(
-    enableRequestQueue: true,
-  ),
-);
-
-// Requests are automatically queued when offline
-await client.post<Map<String, dynamic>>(
-  'https://api.example.com/posts',
-  body: {'title': 'My Post'},
-  transformer: (data) => data as Map<String, dynamic>,
-);
-
-// Check queue status
-print('Queue size: ${client.queue.length}');
-print('Queue status: ${client.queue.status}');
-```
-
-## 📊 Performance Metrics
-
-```dart
-// Get request metrics
-final metrics = client.metrics.getLatestRequest();
-print('Duration: ${metrics?.totalDuration}');
-print('Success: ${metrics?.success}');
-
-// Get cache performance
-final cacheMetrics = client.metrics.getCacheMetrics();
-print('Hit rate: ${cacheMetrics.hitRate * 100}%');
-
-// Get success rate
-final successRate = client.metrics.getSuccessRate();
-print('Success rate: ${successRate * 100}%');
-```
-
-## 🔌 Custom Adapters
-
-Create adapters for any HTTP client:
-
-```dart
-class MyCustomAdapter extends HttpClientAdapter {
-  final MyHttpClient _client;
-
-  MyCustomAdapter(this._client);
-
-  @override
-  Future<SmartDioResponse<T>> execute<T>({
-    required SmartDioRequest request,
-    required T Function(dynamic data) transformer,
-  }) async {
-    // Implement your HTTP client logic here
-    try {
-      final response = await _client.send(request);
-      return SmartDioSuccess<T>(
-        data: transformer(response.data),
-        statusCode: response.statusCode,
-        headers: response.headers,
-        correlationId: request.correlationId,
-        timestamp: DateTime.now(),
-        duration: response.duration,
-      );
-    } catch (e) {
-      return SmartDioError<T>(
-        error: e,
-        type: SmartDioErrorType.network,
-        correlationId: request.correlationId,
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-      );
-    }
-  }
-
-  @override
-  Future<void> close() async {
-    await _client.close();
-  }
-}
-```
-
-## 🔐 Security
-
-SmartDio automatically redacts sensitive information in logs:
-
-```dart
-final logger = SmartLogger(
-  sensitiveHeaders: ['authorization', 'x-api-key'],
-  sensitiveBodyFields: ['password', 'secret'],
-);
-```
-
-## 🎛️ Interceptors
-
-Add custom request/response processing:
-
-```dart
-class AuthInterceptor extends SmartDioInterceptor {
-  @override
-  Future<SmartDioRequest> onRequest(SmartDioRequest request) async {
-    return request.copyWith(
-      headers: {...request.headers, 'Authorization': 'Bearer $token'},
-    );
-  }
-}
-
-client.interceptors.add(AuthInterceptor());
-```
-
-## 📈 Monitoring
-
-Listen to real-time events:
-
-```dart
-// Queue events
-client.queue.events.listen((event) {
-  print('Queue event: $event');
-});
-
-// Metrics events  
-client.metrics.events.listen((event) {
-  print('Metrics event: $event');
-});
-
-// Connectivity events
-client.connectivity.statusStream.listen((status) {
-  print('Connectivity: ${status.status}');
-});
-```
-
-## 🧪 Testing
-
-SmartDio is designed to be test-friendly:
-
-```dart
-class MockAdapter extends HttpClientAdapter {
-  final Map<String, dynamic> mockResponses;
-  
-  MockAdapter(this.mockResponses);
-  
-  @override
-  Future<SmartDioResponse<T>> execute<T>({
-    required SmartDioRequest request,
-    required T Function(dynamic data) transformer,
-  }) async {
-    final mockData = mockResponses[request.uri.toString()];
-    return SmartDioSuccess<T>(
-      data: transformer(mockData),
-      statusCode: 200,
-      correlationId: request.correlationId,
-      timestamp: DateTime.now(),
-      duration: Duration(milliseconds: 100),
-    );
-  }
-  
-  @override
-  Future<void> close() async {}
-}
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-
-- [Issue Tracker](https://github.com/rahulshahDEV/flutter_smartdio/issues)
-- [Changelog](https://github.com/rahulshahDEV/flutter_smartdio/blob/main/CHANGELOG.md)
