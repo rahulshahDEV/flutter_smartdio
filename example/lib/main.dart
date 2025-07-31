@@ -83,29 +83,29 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
 
   void _initializeClient() {
     client = SmartDioClient(
-        adapter: DioClientAdapter(dioInstance: dioClient),
-        config: const SmartDioConfig(
-          defaultTimeout: Duration(seconds: 10),
-          retryPolicy: RetryPolicy.exponentialBackoff(
-            maxAttempts: 3,
-            initialDelay: Duration(milliseconds: 500),
-          ),
-          cachePolicy: CachePolicy.networkFirst(
-            ttl: Duration(
-                minutes: 10), // Increased TTL for better cache persistence
-          ),
-          logLevel: LogLevel.debug,
-          enableMetrics: true,
-          enableDeduplication: true,
-          enableRequestQueue: true,
+      logger: SmartLogger(level: LogLevel.debug),
+      adapter: DioClientAdapter(dioInstance: dioClient),
+      config: const SmartDioConfig(
+        defaultTimeout: Duration(seconds: 10),
+        retryPolicy: RetryPolicy.exponentialBackoff(
+          maxAttempts: 3,
+          initialDelay: Duration(milliseconds: 500),
         ),
-        cacheStore: cacheStore, // Use Hive persistent cache
-        requestQueue: RequestQueue(
-          storage: MemoryQueueStorage(),
-          maxSize: 50,
+        cachePolicy: CachePolicy.networkFirst(
+          ttl: Duration(
+              minutes: 10), // Increased TTL for better cache persistence
         ),
-        logger: SmartLogger(
-            level: LogLevel.debug)); // Uses ColorfulConsoleLogSink by default
+        logLevel: LogLevel.debug,
+        enableMetrics: true,
+        enableDeduplication: true,
+        enableRequestQueue: true,
+      ),
+      cacheStore: cacheStore, // Use Hive persistent cache
+      requestQueue: RequestQueue(
+        storage: MemoryQueueStorage(),
+        maxSize: 50,
+      ),
+    ); // Uses ColorfulConsoleLogSink by default
 
     // Listen to events
     client.queue.events.listen(_onQueueEvent);

@@ -41,6 +41,7 @@
 ### **📊 Advanced Monitoring**
 - **Performance metrics** with response time tracking
 - **Success rate analytics** and failure reporting
+- **Colorized debug logging** with syntax-highlighted JSON and headers
 - **Comprehensive logging** with sensitive data protection
 - **Real-time event streaming** for monitoring
 
@@ -293,6 +294,165 @@ print('Queue processed: ${queueMetrics.totalProcessed}');
 print('Queue success rate: ${(queueMetrics.successRate * 100).toStringAsFixed(1)}%');
 ```
 
+## 🎨 Enhanced Debug Logging
+
+SmartDio includes a powerful, colorized logging system that provides detailed insights into your HTTP traffic. Perfect for development and debugging!
+
+### 🌈 Colorized Console Output
+
+When debug logging is enabled, you'll see beautiful, color-coded logs with:
+- **📋 Headers** - Blue keys, Green values, Red for sensitive data
+- **📤 Request Payload** - Syntax-highlighted JSON with proper indentation
+- **📥 Response Body** - Color-coded data types (strings, numbers, booleans)
+- **🔒 Security** - Sensitive data automatically redacted as `[REDACTED]`
+
+### 🔧 Enable Debug Logging
+
+There are **two LogLevel settings** that control different aspects of logging:
+
+#### 1. Framework-Level Logging (SmartDioConfig)
+Controls internal client operations like cache hits, retries, queue operations:
+
+```dart
+final client = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  config: const SmartDioConfig(
+    logLevel: LogLevel.debug,  // Framework operations logging
+    enableMetrics: true,
+    enableDeduplication: true,
+    enableRequestQueue: true,
+  ),
+  // ...
+);
+```
+
+#### 2. HTTP Traffic Logging (SmartLogger)
+Controls detailed HTTP request/response logging with headers, payloads, and response bodies:
+
+```dart
+final client = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  logger: SmartLogger(level: LogLevel.debug),  // HTTP traffic logging
+  config: const SmartDioConfig(
+    // ... other config
+  ),
+);
+```
+
+### 📊 Log Level Comparison
+
+| Aspect | SmartDioConfig.logLevel | SmartLogger.level |
+|--------|------------------------|-------------------|
+| **Scope** | Client framework operations | HTTP traffic details |
+| **Controls** | Cache, retry, queue logs | Headers, payloads, responses |
+| **Example Logs** | "Cache hit", "Retrying request" | Request headers, JSON payloads |
+| **Performance Impact** | Low | Higher (detailed HTTP data) |
+| **Security** | General client info | Sensitive data (sanitized) |
+
+### 🎯 Recommended Settings
+
+#### **Development Mode**
+```dart
+final client = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  logger: SmartLogger(level: LogLevel.debug),  // Full HTTP details
+  config: const SmartDioConfig(
+    logLevel: LogLevel.debug,  // All framework details
+    enableMetrics: true,
+  ),
+);
+```
+
+#### **Production Mode**
+```dart
+final client = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  logger: SmartLogger(level: LogLevel.warning),  // Errors only
+  config: const SmartDioConfig(
+    logLevel: LogLevel.warning,  // Framework errors only
+    enableMetrics: true,
+  ),
+);
+```
+
+#### **Performance Testing**
+```dart
+final client = SmartDioClient(
+  adapter: DioClientAdapter(dioInstance: Dio()),
+  logger: SmartLogger(level: LogLevel.error),  // Minimal logging
+  config: const SmartDioConfig(
+    logLevel: LogLevel.error,  // Minimal logging
+    enableMetrics: false,  // Disable for pure performance
+  ),
+);
+```
+
+### 🎨 Example Debug Output
+
+When both log levels are set to `LogLevel.debug`, you'll see output like:
+
+```bash
+🔧 [DEBUG] 📋 Request Headers:
+  content-type: application/json
+  authorization: [REDACTED]
+  user-agent: SmartDio Flutter App/1.0
+
+🔧 [DEBUG] 📤 Request Payload:
+{
+  "title": "Hello World",
+  "body": "Test content",
+  "userId": 1,
+  "password": "[REDACTED]"
+}
+
+✅ [INFO] HTTP Response: 201 POST /api/posts (245ms)
+
+🔧 [DEBUG] 📋 Response Headers:
+  content-type: application/json; charset=utf-8
+  server: nginx/1.18.0
+  location: /api/posts/101
+
+🔧 [DEBUG] 📥 Response Body:
+{
+  "id": 101,
+  "title": "Hello World",
+  "body": "Test content",
+  "userId": 1,
+  "createdAt": "2023-12-01T10:30:00Z"
+}
+```
+
+### 🛡️ Security Features
+
+- **Automatic Sanitization**: Sensitive headers and body fields are automatically redacted
+- **Configurable Sensitive Fields**: 
+  - Headers: `authorization`, `x-api-key`, `cookie`, `x-auth-token`
+  - Body: `password`, `token`, `secret`, `key`, `authorization`
+- **Nested Object Support**: Deep sanitization of complex JSON structures
+- **Performance Optimized**: Colors only applied when using ColorfulConsoleLogSink
+
+### 🎛️ Custom Logger Configuration
+
+```dart
+// Basic logger (no colors/emojis)
+final basicLogger = SmartLogger.basic(level: LogLevel.debug);
+
+// Compact logger (minimal output)
+final compactLogger = SmartLogger.compact(level: LogLevel.debug);
+
+// Custom logger with specific settings
+final customLogger = SmartLogger(
+  level: LogLevel.debug,
+  sensitiveHeaders: ['custom-auth', 'x-secret'],
+  sensitiveBodyFields: ['customPassword', 'apiKey'],
+  sinks: [ColorfulConsoleLogSink(
+    enableColors: true,
+    enableEmojis: true,
+    compactMode: false,
+  )],
+);
+```
+
 ## 🔧 Advanced Usage
 
 ### Custom Error Handling
@@ -434,7 +594,8 @@ The package includes two comprehensive example apps:
 - **Interactive feature testing** with live UI
 - **Real-time performance metrics** and analytics
 - **Persistent cache management** with Hive
-- **Enhanced logging** with colorful console output
+- **Colorized debug logging** with headers, payloads, and response bodies
+- **Enhanced logging** with security-safe sensitive data redaction
 - **Offline mode simulation** and queue management
 - **Request deduplication** testing
 - **Type-safe API demonstrations**
