@@ -81,7 +81,6 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     chopperClient = ChopperClient();
   }
 
-
   void _initializeClient() {
     client = SmartDioClient(
         adapter: DioClientAdapter(dioInstance: dioClient),
@@ -105,7 +104,8 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
           storage: MemoryQueueStorage(),
           maxSize: 50,
         ),
-        logger: SmartLogger()); // Uses ColorfulConsoleLogSink by default
+        logger: SmartLogger(
+            level: LogLevel.debug)); // Uses ColorfulConsoleLogSink by default
 
     // Listen to events
     client.queue.events.listen(_onQueueEvent);

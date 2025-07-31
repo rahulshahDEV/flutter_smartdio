@@ -306,6 +306,18 @@ class _LevelInfo {
 }
 
 class SmartLogger {
+  // Color constants for debug logging
+  static const String _reset = '\x1B[0m';
+  static const String _bold = '\x1B[1m';
+  static const String _red = '\x1B[31m';
+  static const String _green = '\x1B[32m';
+  static const String _yellow = '\x1B[33m';
+  static const String _blue = '\x1B[34m';
+  static const String _magenta = '\x1B[35m';
+  static const String _cyan = '\x1B[36m';
+  static const String _white = '\x1B[37m';
+  static const String _gray = '\x1B[90m';
+
   final LogLevel level;
   final List<String> sensitiveHeaders;
   final List<String> sensitiveBodyFields;
@@ -475,15 +487,43 @@ class SmartLogger {
     final metadata = <String, dynamic>{
       'method': method,
       'url': url,
-      if (headers != null) 'headers': headers,
-      if (body != null) 'body': body,
+      if (headers != null) 'headers': _sanitizeHeaders(headers),
+      if (body != null) 'body': _sanitizeBody(body),
     };
-    
+
     info(
       '🚀 HTTP Request: $method $url',
       correlationId: correlationId,
       metadata: metadata,
     );
+
+    if (level >= LogLevel.debug) {
+      if (headers != null && headers.isNotEmpty) {
+        final sanitizedHeaders = _sanitizeHeaders(headers);
+        final headerLines = StringBuffer();
+        headerLines.writeln(_applyDebugColor('📋 Request Headers:', _cyan + _bold));
+        for (final entry in sanitizedHeaders.entries) {
+          final key = _applyDebugColor('  ${entry.key}:', _blue);
+          final value = entry.value == '[REDACTED]' 
+              ? _applyDebugColor(entry.value, _red + _bold)
+              : _applyDebugColor(entry.value, _green);
+          headerLines.writeln('$key $value');
+        }
+        debug(
+          headerLines.toString().trimRight(),
+          correlationId: correlationId,
+        );
+      }
+      
+      if (body != null) {
+        final sanitizedBody = _sanitizeBody(body);
+        final bodyStr = _formatColorizedJsonForLogging(sanitizedBody);
+        debug(
+          '${_applyDebugColor('📤 Request Payload:', _cyan + _bold)}\n$bodyStr',
+          correlationId: correlationId,
+        );
+      }
+    }
   }
 
   void httpResponse(
@@ -504,18 +544,46 @@ class SmartLogger {
       'url': url,
       'duration': '${duration.inMilliseconds}ms',
       'fromCache': fromCache,
-      if (headers != null) 'headers': headers,
-      if (body != null) 'body': body,
+      if (headers != null) 'headers': _sanitizeHeaders(headers),
+      if (body != null) 'body': _sanitizeBody(body),
     };
     
-    final level = statusCode >= 400 ? LogLevel.warning : LogLevel.info;
+    final logLevel = statusCode >= 400 ? LogLevel.warning : LogLevel.info;
     
     log(
-      level,
+      logLevel,
       '$emoji HTTP Response: $statusCode $method $url (${duration.inMilliseconds}ms)$cacheEmoji',
       correlationId: correlationId,
       metadata: metadata,
     );
+
+    if (level >= LogLevel.debug) {
+      if (headers != null && headers.isNotEmpty) {
+        final sanitizedHeaders = _sanitizeHeaders(headers);
+        final headerLines = StringBuffer();
+        headerLines.writeln(_applyDebugColor('📋 Response Headers:', _magenta + _bold));
+        for (final entry in sanitizedHeaders.entries) {
+          final key = _applyDebugColor('  ${entry.key}:', _blue);
+          final value = entry.value == '[REDACTED]' 
+              ? _applyDebugColor(entry.value, _red + _bold)
+              : _applyDebugColor(entry.value, _green);
+          headerLines.writeln('$key $value');
+        }
+        debug(
+          headerLines.toString().trimRight(),
+          correlationId: correlationId,
+        );
+      }
+      
+      if (body != null) {
+        final sanitizedBody = _sanitizeBody(body);
+        final bodyStr = _formatColorizedJsonForLogging(sanitizedBody);
+        debug(
+          '${_applyDebugColor('📥 Response Body:', _magenta + _bold)}\n$bodyStr',
+          correlationId: correlationId,
+        );
+      }
+    }
   }
 
   void httpError(
@@ -666,6 +734,229 @@ class SmartLogger {
   bool _isSensitiveKey(String key) {
     return sensitiveHeaders.any((header) => key.contains(header.toLowerCase())) ||
            sensitiveBodyFields.any((field) => key.contains(field.toLowerCase()));
+  }
+
+  Map<String, String> _sanitizeHeaders(Map<String, String> headers) {
+    final sanitized = <String, String>{};
+    
+    for (final entry in headers.entries) {
+      final key = entry.key.toLowerCase();
+      if (_isSensitiveKey(key)) {
+        sanitized[entry.key] = '[REDACTED]';
+      } else {
+        sanitized[entry.key] = entry.value;
+      }
+    }
+    
+    return sanitized;
+  }
+
+  dynamic _sanitizeBody(dynamic body) {
+    if (body == null) return null;
+    
+    if (body is String) {
+      try {
+        final decoded = jsonDecode(body);
+        return _sanitizeBodyData(decoded);
+      } catch (e) {
+        return body;
+      }
+    }
+    
+    return _sanitizeBodyData(body);
+  }
+
+  dynamic _sanitizeBodyData(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final sanitized = <String, dynamic>{};
+      for (final entry in data.entries) {
+        final key = entry.key.toLowerCase();
+        if (_isSensitiveKey(key)) {
+          sanitized[entry.key] = '[REDACTED]';
+        } else if (entry.value is Map<String, dynamic>) {
+          sanitized[entry.key] = _sanitizeBodyData(entry.value);
+        } else if (entry.value is List) {
+          sanitized[entry.key] = _sanitizeBodyData(entry.value);
+        } else {
+          sanitized[entry.key] = entry.value;
+        }
+      }
+      return sanitized;
+    } else if (data is List) {
+      return data.map((item) => _sanitizeBodyData(item)).toList();
+    } else if (data is Map) {
+      final sanitized = <String, dynamic>{};
+      for (final entry in data.entries) {
+        final key = entry.key.toString().toLowerCase();
+        if (_isSensitiveKey(key)) {
+          sanitized[entry.key.toString()] = '[REDACTED]';
+        } else {
+          sanitized[entry.key.toString()] = _sanitizeBodyData(entry.value);
+        }
+      }
+      return sanitized;
+    }
+    
+    return data;
+  }
+
+  String _formatJsonForLogging(dynamic data, {int indent = 0}) {
+    const String indentStr = '  ';
+    final String currentIndent = indentStr * indent;
+    final String nextIndent = indentStr * (indent + 1);
+
+    if (data == null) {
+      return 'null';
+    } else if (data is String) {
+      // Check if it's already a JSON string and try to parse it
+      if (data.startsWith('{') || data.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(data);
+          return _formatJsonForLogging(decoded, indent: indent);
+        } catch (e) {
+          return '"$data"';
+        }
+      }
+      return '"$data"';
+    } else if (data is Map) {
+      if (data.isEmpty) return '{}';
+      
+      final buffer = StringBuffer();
+      buffer.writeln('{');
+      
+      final entries = data.entries.toList();
+      for (int i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        final isLast = i == entries.length - 1;
+        
+        buffer.write('$nextIndent"${entry.key}": ');
+        final formattedValue = _formatJsonForLogging(entry.value, indent: indent + 1);
+        
+        if (formattedValue.contains('\n')) {
+          buffer.write(formattedValue);
+        } else {
+          buffer.write(formattedValue);
+        }
+        
+        if (!isLast) buffer.write(',');
+        buffer.writeln();
+      }
+      
+      buffer.write('$currentIndent}');
+      return buffer.toString();
+    } else if (data is List) {
+      if (data.isEmpty) return '[]';
+      
+      final buffer = StringBuffer();
+      buffer.writeln('[');
+      
+      for (int i = 0; i < data.length; i++) {
+        final isLast = i == data.length - 1;
+        buffer.write(nextIndent);
+        
+        final formattedValue = _formatJsonForLogging(data[i], indent: indent + 1);
+        buffer.write(formattedValue);
+        
+        if (!isLast) buffer.write(',');
+        buffer.writeln();
+      }
+      
+      buffer.write('$currentIndent]');
+      return buffer.toString();
+    } else if (data is num || data is bool) {
+      return data.toString();
+    } else {
+      return '"${data.toString()}"';
+    }
+  }
+
+  String _formatColorizedJsonForLogging(dynamic data, {int indent = 0}) {
+    const String indentStr = '  ';
+    final String currentIndent = indentStr * indent;
+    final String nextIndent = indentStr * (indent + 1);
+
+    if (data == null) {
+      return _applyDebugColor('null', _gray);
+    } else if (data is String) {
+      // Check if it's already a JSON string and try to parse it
+      if (data.startsWith('{') || data.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(data);
+          return _formatColorizedJsonForLogging(decoded, indent: indent);
+        } catch (e) {
+          if (data == '[REDACTED]') {
+            return _applyDebugColor('"$data"', _red + _bold);
+          }
+          return _applyDebugColor('"$data"', _green);
+        }
+      }
+      if (data == '[REDACTED]') {
+        return _applyDebugColor('"$data"', _red + _bold);
+      }
+      return _applyDebugColor('"$data"', _green);
+    } else if (data is Map) {
+      if (data.isEmpty) return _applyDebugColor('{}', _white);
+      
+      final buffer = StringBuffer();
+      buffer.writeln(_applyDebugColor('{', _white));
+      
+      final entries = data.entries.toList();
+      for (int i = 0; i < entries.length; i++) {
+        final entry = entries[i];
+        final isLast = i == entries.length - 1;
+        
+        final keyColor = _applyDebugColor('$nextIndent"${entry.key}":', _blue);
+        buffer.write('$keyColor ');
+        
+        final formattedValue = _formatColorizedJsonForLogging(entry.value, indent: indent + 1);
+        
+        if (formattedValue.contains('\n')) {
+          buffer.write(formattedValue);
+        } else {
+          buffer.write(formattedValue);
+        }
+        
+        if (!isLast) buffer.write(_applyDebugColor(',', _white));
+        buffer.writeln();
+      }
+      
+      buffer.write('$currentIndent${_applyDebugColor('}', _white)}');
+      return buffer.toString();
+    } else if (data is List) {
+      if (data.isEmpty) return _applyDebugColor('[]', _white);
+      
+      final buffer = StringBuffer();
+      buffer.writeln(_applyDebugColor('[', _white));
+      
+      for (int i = 0; i < data.length; i++) {
+        final isLast = i == data.length - 1;
+        buffer.write(nextIndent);
+        
+        final formattedValue = _formatColorizedJsonForLogging(data[i], indent: indent + 1);
+        buffer.write(formattedValue);
+        
+        if (!isLast) buffer.write(_applyDebugColor(',', _white));
+        buffer.writeln();
+      }
+      
+      buffer.write('$currentIndent${_applyDebugColor(']', _white)}');
+      return buffer.toString();
+    } else if (data is num) {
+      return _applyDebugColor(data.toString(), _yellow);
+    } else if (data is bool) {
+      return _applyDebugColor(data.toString(), _magenta);
+    } else {
+      return _applyDebugColor('"${data.toString()}"', _green);
+    }
+  }
+
+  String _applyDebugColor(String text, String colorCode) {
+    // Check if we're using a colorful sink
+    final hasColorfulSink = sinks.any((sink) => sink is ColorfulConsoleLogSink);
+    if (hasColorfulSink) {
+      return '$colorCode$text$_reset';
+    }
+    return text;
   }
 
   Future<void> flush() async {

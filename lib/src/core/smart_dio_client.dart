@@ -95,14 +95,12 @@ class SmartDioClient {
       tags: mergedConfig.tags,
     );
 
-    _logger.info(
-      'Starting request',
+    _logger.httpRequest(
+      method,
+      url,
       correlationId: correlationId,
-      metadata: {
-        'method': method,
-        'url': url,
-        'hasBody': body != null,
-      },
+      headers: mergedHeaders,
+      body: body,
     );
 
     try {
@@ -138,6 +136,20 @@ class SmartDioClient {
         if (cached != null) {
           _logger.debug('Cache hit', correlationId: correlationId);
           _metrics.recordCacheHit(correlationId, request.signature);
+          
+          // Log cached response
+          final success = cached as SmartDioSuccess<T>;
+          _logger.httpResponse(
+            success.statusCode,
+            method,
+            url,
+            success.duration,
+            correlationId: correlationId,
+            headers: success.headers,
+            body: success.data,
+            fromCache: true,
+          );
+          
           return cached;
         }
         _metrics.recordCacheMiss(correlationId, request.signature);
@@ -154,11 +166,38 @@ class SmartDioClient {
 
       response = await _interceptors.processResponse(response);
 
+      // Log the response with detailed debug information
+      final duration = DateTime.now().difference(startTime);
+      if (response.isSuccess) {
+        final success = response as SmartDioSuccess;
+        _logger.httpResponse(
+          success.statusCode,
+          method,
+          url,
+          duration,
+          correlationId: correlationId,
+          headers: success.headers,
+          body: success.data,
+          fromCache: response.isFromCache,
+        );
+      } else {
+        final error = response as SmartDioError;
+        _logger.httpResponse(
+          error.statusCode ?? 0,
+          method,
+          url,
+          duration,
+          correlationId: correlationId,
+          headers: error.headers,
+          body: error.error.toString(),
+          fromCache: response.isFromCache,
+        );
+      }
+
       if (response.isSuccess && _shouldCache(request, response, cachePolicy)) {
         await _cacheResponse(request, response);
       }
 
-      final duration = DateTime.now().difference(startTime);
       _recordMetrics(request, response, startTime, duration);
 
       return response;
