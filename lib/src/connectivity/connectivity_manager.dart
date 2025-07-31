@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 import 'package:meta/meta.dart';
 
+/// Enumeration of possible network connectivity states.
 enum ConnectivityStatus {
   connected,
   disconnected,
   unknown,
 }
 
+/// Enumeration of network connection quality levels.
 enum ConnectionQuality {
   excellent,
   good,
@@ -15,6 +17,10 @@ enum ConnectionQuality {
   none,
 }
 
+/// Immutable class containing information about the current network connectivity.
+/// 
+/// This class provides details about connection status, quality, timing,
+/// and optional endpoint information for connectivity checks.
 @immutable
 class ConnectivityInfo {
   final ConnectivityStatus status;

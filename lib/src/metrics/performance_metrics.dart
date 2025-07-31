@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
 
+/// Immutable class containing performance metrics for a single HTTP request.
+/// 
+/// This class captures detailed timing information, success/failure status,
+/// caching information, and other metrics useful for performance analysis
+/// and debugging.
 @immutable
 class RequestMetrics {
   final String correlationId;
@@ -17,6 +22,10 @@ class RequestMetrics {
   final int? responseSize;
   final String? errorType;
 
+  /// Creates a RequestMetrics instance with the specified performance data.
+  /// 
+  /// [correlationId] links these metrics to the corresponding request/response
+  /// [success] indicates whether the request completed successfully
   const RequestMetrics({
     required this.correlationId,
     required this.method,
@@ -98,6 +107,7 @@ class CacheMetrics {
 @immutable
 class QueueMetrics {
   final int currentSize;
+  final int totalAdded;
   final int totalProcessed;
   final int totalFailed;
   final int totalExpired;
@@ -107,6 +117,7 @@ class QueueMetrics {
 
   const QueueMetrics({
     required this.currentSize,
+    required this.totalAdded,
     required this.totalProcessed,
     required this.totalFailed,
     required this.totalExpired,
@@ -118,6 +129,7 @@ class QueueMetrics {
   Map<String, dynamic> toJson() {
     return {
       'currentSize': currentSize,
+      'totalAdded': totalAdded,
       'totalProcessed': totalProcessed,
       'totalFailed': totalFailed,
       'totalExpired': totalExpired,
@@ -309,6 +321,7 @@ class PerformanceMetrics {
 
     return QueueMetrics(
       currentSize: currentQueueSize,
+      totalAdded: _queueAdded,
       totalProcessed: _queueProcessed,
       totalFailed: _queueFailed,
       totalExpired: _queueExpired,

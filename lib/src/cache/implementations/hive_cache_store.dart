@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../cache_manager.dart';
 
@@ -13,8 +14,14 @@ class HiveCacheStore implements CacheStore {
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    // Initialize Hive
-    await Hive.initFlutter('smartdio_cache');
+    // Initialize Hive with platform-specific path
+    if (kIsWeb) {
+      // On web, Hive doesn't need a specific path
+      Hive.init('.');
+    } else {
+      // On other platforms, use Flutter-specific initialization
+      await Hive.initFlutter('smartdio_cache');
+    }
     
     // Open cache box
     _cacheBox = await Hive.openBox<String>(_boxName);

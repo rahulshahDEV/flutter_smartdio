@@ -3,6 +3,12 @@ import '../retry/retry_policy.dart';
 import '../cache/cache_manager.dart';
 import '../logging/smart_logger.dart';
 
+/// Configuration class for SmartDioClient that defines behavior for caching,
+/// retries, logging, and other advanced features.
+/// 
+/// This immutable configuration class allows you to customize various aspects
+/// of the HTTP client behavior including timeouts, retry policies, cache settings,
+/// and security configurations.
 @immutable
 class SmartDioConfig {
   final Duration defaultTimeout;

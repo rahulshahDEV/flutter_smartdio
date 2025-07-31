@@ -1,17 +1,29 @@
 import 'package:meta/meta.dart';
 
+/// Defines caching behavior for HTTP requests and responses.
+/// 
+/// This sealed class provides various caching strategies including network-first,
+/// cache-first, cache-only, and network-only policies. Each policy determines
+/// when responses should be cached and when cached responses should be used.
 @immutable
 sealed class CachePolicy {
   const CachePolicy();
 
+  /// Creates a policy that disables all caching.
   const factory CachePolicy.none() = NoCachePolicy;
   
+  /// Creates a network-first policy that tries network first, falls back to cache.
+  /// 
+  /// [ttl] defines how long cached responses remain valid
+  /// [cacheMethods] specifies which HTTP methods should be cached
+  /// [cacheStatusCodes] defines which HTTP status codes should be cached
   const factory CachePolicy.networkFirst({
     Duration? ttl,
     Set<String> cacheMethods,
     Set<int> cacheStatusCodes,
   }) = NetworkFirstCachePolicy;
   
+  /// Creates a cache-first policy that tries cache first, falls back to network.
   const factory CachePolicy.cacheFirst({
     Duration? ttl,
     Set<String> cacheMethods,

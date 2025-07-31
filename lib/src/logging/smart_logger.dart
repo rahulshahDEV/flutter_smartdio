@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'package:meta/meta.dart';
 
+/// Defines the severity levels for logging messages.
+/// 
+/// Log levels are ordered from least to most verbose, allowing for
+/// filtering of log messages based on their importance.
 enum LogLevel {
   none(0),
   error(1),
@@ -18,6 +22,10 @@ enum LogLevel {
   bool operator <(LogLevel other) => value < other.value;
 }
 
+/// Represents a single log entry with metadata and optional error information.
+/// 
+/// This immutable class captures all the information about a log event,
+/// including timing, correlation IDs for request tracking, and error details.
 @immutable
 class LogEntry {
   final DateTime timestamp;

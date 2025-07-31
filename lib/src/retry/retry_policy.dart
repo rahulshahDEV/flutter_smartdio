@@ -2,12 +2,22 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 import '../core/smart_dio_response.dart';
 
+/// Defines retry behavior for failed HTTP requests.
+/// 
+/// This sealed class provides various retry strategies including fixed delay,
+/// exponential backoff, and custom retry policies. Each policy determines
+/// when and how requests should be retried after failures.
 @immutable
 sealed class RetryPolicy {
   const RetryPolicy();
 
+  /// Creates a policy that disables all retries.
   const factory RetryPolicy.none() = NoRetryPolicy;
   
+  /// Creates a fixed delay retry policy.
+  /// 
+  /// [maxAttempts] maximum number of retry attempts
+  /// [delay] fixed delay between retry attempts
   const factory RetryPolicy.fixed({
     required int maxAttempts,
     required Duration delay,
@@ -15,6 +25,11 @@ sealed class RetryPolicy {
     Set<SmartDioErrorType> retryErrorTypes,
   }) = FixedDelayRetryPolicy;
 
+  /// Creates an exponential backoff retry policy.
+  /// 
+  /// [maxAttempts] maximum number of retry attempts
+  /// [initialDelay] initial delay before first retry
+  /// [multiplier] factor to multiply delay by for each retry
   const factory RetryPolicy.exponentialBackoff({
     required int maxAttempts,
     required Duration initialDelay,

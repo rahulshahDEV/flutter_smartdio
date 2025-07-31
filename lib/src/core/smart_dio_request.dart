@@ -1,5 +1,9 @@
 import 'package:meta/meta.dart';
 
+/// Represents an HTTP request with all necessary information for execution.
+/// 
+/// This immutable class encapsulates all the details needed to make an HTTP request,
+/// including method, URI, headers, body, and metadata for tracking and debugging.
 @immutable
 class SmartDioRequest {
   final String method;
@@ -11,6 +15,11 @@ class SmartDioRequest {
   final String correlationId;
   final Set<String> tags;
 
+  /// Creates a new SmartDioRequest with the specified parameters.
+  /// 
+  /// [method] is the HTTP method (GET, POST, etc.)
+  /// [uri] is the target URI for the request
+  /// [correlationId] is a unique identifier for tracking this request
   const SmartDioRequest({
     required this.method,
     required this.uri,
@@ -22,6 +31,7 @@ class SmartDioRequest {
     this.tags = const {},
   });
 
+  /// Creates a copy of this request with optionally updated fields.
   SmartDioRequest copyWith({
     String? method,
     Uri? uri,

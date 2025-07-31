@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import '../core/smart_dio_request.dart';
 
+/// Represents a queued HTTP request waiting to be executed.
+/// 
+/// This immutable class stores request information along with metadata
+/// about when it was queued, retry attempts, and any previous errors.
 @immutable
 class QueuedRequest {
   final String id;
@@ -11,6 +15,11 @@ class QueuedRequest {
   final DateTime? lastAttempt;
   final Object? lastError;
 
+  /// Creates a QueuedRequest with the specified parameters.
+  /// 
+  /// [id] is a unique identifier for this queued request
+  /// [request] is the HTTP request to be executed
+  /// [queuedAt] is when this request was added to the queue
   const QueuedRequest({
     required this.id,
     required this.request,

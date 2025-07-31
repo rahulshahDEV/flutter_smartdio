@@ -1,5 +1,10 @@
 import 'package:meta/meta.dart';
 
+/// Sealed class representing the result of an HTTP request execution.
+/// 
+/// This class can be either a [SmartDioSuccess] for successful responses
+/// or a [SmartDioError] for failed responses. It includes metadata about
+/// the request execution such as timing, caching, and retry information.
 @immutable
 sealed class SmartDioResponse<T> {
   final String correlationId;
@@ -8,6 +13,11 @@ sealed class SmartDioResponse<T> {
   final bool isFromCache;
   final int retryCount;
 
+  /// Creates a SmartDioResponse with the specified metadata.
+  /// 
+  /// [correlationId] links this response to its corresponding request
+  /// [timestamp] indicates when the response was received
+  /// [duration] shows how long the request took to complete
   const SmartDioResponse({
     required this.correlationId,
     required this.timestamp,
@@ -22,6 +32,9 @@ sealed class SmartDioResponse<T> {
   SmartDioSuccess<T>? get asSuccess => this is SmartDioSuccess<T> ? this as SmartDioSuccess<T> : null;
   SmartDioError<T>? get asError => this is SmartDioError<T> ? this as SmartDioError<T> : null;
 
+  /// Transforms this response into type [R] using the appropriate handler.
+  /// 
+  /// Calls [onSuccess] if this is a successful response, otherwise calls [onError].
   R fold<R>(
     R Function(SmartDioSuccess<T> success) onSuccess,
     R Function(SmartDioError<T> error) onError,
@@ -32,6 +45,9 @@ sealed class SmartDioResponse<T> {
     };
   }
 
+  /// Maps the data of a successful response to type [R].
+  /// 
+  /// If this is an error response, returns the error unchanged.
   SmartDioResponse<R> map<R>(R Function(T data) transform) {
     return switch (this) {
       SmartDioSuccess<T> success => SmartDioSuccess<R>(

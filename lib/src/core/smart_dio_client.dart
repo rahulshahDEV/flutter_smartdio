@@ -12,6 +12,12 @@ import 'smart_dio_config.dart';
 import 'smart_dio_request.dart';
 import 'smart_dio_response.dart';
 
+/// A smart HTTP client that provides transport-agnostic HTTP operations with
+/// caching, queuing, retry mechanisms, and comprehensive logging.
+/// 
+/// This class serves as the main entry point for all HTTP operations and
+/// orchestrates various features like offline caching, request deduplication,
+/// connectivity management, and performance monitoring.
 class SmartDioClient {
   final HttpClientAdapter _adapter;
   final SmartDioConfig _config;
@@ -25,6 +31,11 @@ class SmartDioClient {
   final Map<String, SmartDioRequest> _activeRequests = {};
   final Map<String, Completer<SmartDioResponse>> _deduplicationMap = {};
 
+  /// Creates a new SmartDioClient with the specified configuration.
+  /// 
+  /// The [adapter] parameter is required and defines the underlying HTTP client
+  /// to use (Dio, HTTP, or Chopper). All other parameters are optional and will
+  /// use sensible defaults if not provided.
   SmartDioClient({
     required HttpClientAdapter adapter,
     SmartDioConfig? config,

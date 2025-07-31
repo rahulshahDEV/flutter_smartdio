@@ -48,7 +48,7 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
   late dio.Dio dioClient;
   late http.Client httpPackageClient;
   late ChopperClient chopperClient;
-  
+
   // Persistent cache store
   late HiveCacheStore cacheStore;
 
@@ -63,13 +63,13 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     cacheStore = HiveCacheStore();
     await cacheStore.initialize();
     _addLog('💾 Initialized persistent cache store');
-    
+
     // Show enhanced logging capabilities
     _demonstrateEnhancedLogging();
 
     // Initialize HTTP clients
     _initializeClients();
-    
+
     // Initialize SmartDio client
     _initializeClient();
   }
@@ -81,22 +81,10 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     chopperClient = ChopperClient();
   }
 
-  HttpClientAdapter _getCurrentAdapter() {
-    switch (currentClientType) {
-      case ClientType.httpClient:
-        return HttpClientAdapterImpl(client: httpClient);
-      case ClientType.dio:
-        return DioClientAdapter(dioInstance: dioClient);
-      case ClientType.httpPackage:
-        return HttpPackageAdapter(httpClient: httpPackageClient);
-      case ClientType.chopper:
-        return ChopperClientAdapter(chopperClient: chopperClient);
-    }
-  }
 
   void _initializeClient() {
     client = SmartDioClient(
-        adapter: _getCurrentAdapter(),
+        adapter: DioClientAdapter(dioInstance: dioClient),
         config: const SmartDioConfig(
           defaultTimeout: Duration(seconds: 10),
           retryPolicy: RetryPolicy.exponentialBackoff(
@@ -104,7 +92,8 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
             initialDelay: Duration(milliseconds: 500),
           ),
           cachePolicy: CachePolicy.networkFirst(
-            ttl: Duration(minutes: 10), // Increased TTL for better cache persistence
+            ttl: Duration(
+                minutes: 10), // Increased TTL for better cache persistence
           ),
           logLevel: LogLevel.debug,
           enableMetrics: true,
@@ -158,20 +147,21 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
 
   void _demonstrateEnhancedLogging() {
     final logger = SmartLogger();
-    
+
     // Demonstrate different log levels with emojis and colors
     logger.info('🎨 Enhanced SmartLogger initialized with colorful output!');
     logger.debug('🔧 Debug mode active - all HTTP requests will be logged');
     logger.warning('⚠️ This is a warning message example');
     logger.verbose('🔍 Verbose logging shows detailed information');
-    
+
     // Demonstrate HTTP-specific logging
-    logger.httpRequest('GET', 'https://api.example.com/test', 
-      correlationId: 'demo-123');
-    logger.cacheHit('test-key', age: Duration(minutes: 5));
+    logger.httpRequest('GET', 'https://api.example.com/test',
+        correlationId: 'demo-123');
+    logger.cacheHit('test-key', age: const Duration(minutes: 5));
     logger.cacheMiss('missing-key', reason: 'expired');
-    
-    _addLog('✨ Enhanced logging demonstration complete - check console for colorful output!');
+
+    _addLog(
+        '✨ Enhanced logging demonstration complete - check console for colorful output!');
   }
 
   void _addLog(String message) {
@@ -301,7 +291,7 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
   Future<void> _testCaching() async {
     _addLog('🚀 Testing Persistent Cache Functionality...');
 
-    final testUrl = 'https://jsonplaceholder.typicode.com/posts/2';
+    const testUrl = 'https://jsonplaceholder.typicode.com/posts/2';
     const headers = {
       'User-Agent': 'SmartDio Flutter App/1.0',
       'Accept': 'application/json',
@@ -322,7 +312,8 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
       (success) {
         _addLog('✅ First request SUCCESS');
         _addLog('📊 From cache: ${success.isFromCache}');
-        _addLog('📄 Title: ${success.data['title']?.toString().substring(0, 20)}...');
+        _addLog(
+            '📄 Title: ${success.data['title']?.toString().substring(0, 20)}...');
       },
       (error) => _addLog('❌ First request failed: ${error.error}'),
     );
@@ -345,14 +336,16 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
       (success) {
         _addLog('✅ Second request SUCCESS');
         _addLog('📊 From cache: ${success.isFromCache}');
-        _addLog('⚡ Cache is ${success.isFromCache ? "WORKING" : "NOT WORKING"}!');
+        _addLog(
+            '⚡ Cache is ${success.isFromCache ? "WORKING" : "NOT WORKING"}!');
       },
       (error) => _addLog('❌ Second request failed: ${error.error}'),
     );
 
     // Show cache stats
     final stats = await cacheStore.getStats();
-    _addLog('💾 Cache entries: ${stats['validEntries']}/${stats['totalEntries']}');
+    _addLog(
+        '💾 Cache entries: ${stats['validEntries']}/${stats['totalEntries']}');
   }
 
   Future<void> _testOfflineQueue() async {
@@ -437,41 +430,45 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Performance Metrics
-              const Text('📊 Performance Metrics', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('📊 Performance Metrics',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
-              Text('Cache Hit Rate: ${(cacheMetrics.hitRate * 100).toStringAsFixed(1)}%'),
+              Text(
+                  'Cache Hit Rate: ${(cacheMetrics.hitRate * 100).toStringAsFixed(1)}%'),
               Text('Cache Hits: ${cacheMetrics.hitCount}'),
               Text('Cache Misses: ${cacheMetrics.missCount}'),
-              Text('Overall Success Rate: ${(successRate * 100).toStringAsFixed(1)}%'),
+              Text(
+                  'Overall Success Rate: ${(successRate * 100).toStringAsFixed(1)}%'),
               Text('Average Response Time: ${avgTime.inMilliseconds}ms'),
-              
+
               const SizedBox(height: 16),
-              
+
               // Persistent Cache Stats
-              const Text('💾 Persistent Cache (Hive)', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('💾 Persistent Cache (Hive)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               Text('Total Entries: ${cacheStats['totalEntries']}'),
               Text('Valid Entries: ${cacheStats['validEntries']}'),
               Text('Expired Entries: ${cacheStats['expiredEntries']}'),
-              Text('Total Size: ${(cacheStats['totalSizeBytes'] / 1024).toStringAsFixed(1)} KB'),
-              
+              Text(
+                  'Total Size: ${(cacheStats['totalSizeBytes'] / 1024).toStringAsFixed(1)} KB'),
+
               const SizedBox(height: 16),
-              
+
               // Queue Metrics
-              const Text('📋 Queue Metrics', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('📋 Queue Metrics',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               Text('Queue Size: ${queueMetrics.currentSize}'),
               Text('Queue Processed: ${queueMetrics.totalProcessed}'),
-              Text('Queue Success Rate: ${(queueMetrics.successRate * 100).toStringAsFixed(1)}%'),
-              
+              Text(
+                  'Queue Success Rate: ${(queueMetrics.successRate * 100).toStringAsFixed(1)}%'),
+
               const SizedBox(height: 16),
-              
+
               // Connectivity
-              const Text('🌐 Connectivity', 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('🌐 Connectivity',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               Text('Status: ${client.connectivity.currentStatus.status}'),
               Text('Quality: ${client.connectivity.currentStatus.quality}'),
@@ -520,7 +517,7 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     dioClient.close();
     httpPackageClient.close();
     chopperClient.dispose();
-    
+
     // Close persistent cache
     cacheStore.close();
 

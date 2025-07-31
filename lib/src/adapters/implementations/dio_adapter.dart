@@ -125,7 +125,6 @@ class DioClientAdapter extends HttpClientAdapter {
           e.stackTrace,
         );
       case DioExceptionType.unknown:
-      default:
         return UnknownException(
           'Unknown error: ${e.message}',
           e,
@@ -148,7 +147,6 @@ class DioClientAdapter extends HttpClientAdapter {
       case DioExceptionType.badCertificate:
         return SmartDioErrorType.network;
       case DioExceptionType.unknown:
-      default:
         return SmartDioErrorType.unknown;
     }
   }

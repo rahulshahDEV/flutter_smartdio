@@ -29,10 +29,10 @@ packages:
     dependency: "direct main"
     description:
       name: chopper
-      sha256: "1b6280ec22841b844448bec8ef2644d9cbe9ea8dfce13ec9cab9e8d3aac3830d"
+      sha256: "35cde96292178809ca4290f42dbb83d832551333c2b18a2226a2538103ab40d3"
       url: "https://pub.dev"
     source: hosted
-    version: "7.4.0"
+    version: "8.3.0"
   clock:
     dependency: transitive
     description:

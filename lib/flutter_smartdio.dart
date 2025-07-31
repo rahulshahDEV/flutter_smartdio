@@ -1,3 +1,13 @@
+/// A transport-agnostic HTTP wrapper that enhances ANY HTTP client with offline caching,
+/// request queuing, retry mechanisms, and comprehensive logging.
+/// 
+/// This library provides a unified interface for working with multiple HTTP clients
+/// including Dio, HTTP, and Chopper while adding powerful features like:
+/// - Offline caching with multiple storage backends
+/// - Request queuing for network failures
+/// - Configurable retry policies
+/// - Performance metrics and logging
+/// - Connection management
 library flutter_smartdio;
 
 export 'src/adapters/http_client_adapter.dart';
