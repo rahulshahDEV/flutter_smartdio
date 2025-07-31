@@ -1,0 +1,25 @@
+name: smartdio_example
+description: A comprehensive example app demonstrating Flutter SmartDio functionality.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_smartdio:
+    path: ../
+  dio: ^5.8.0+1
+  http: ^1.1.0
+  chopper: ^7.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
