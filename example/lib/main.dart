@@ -63,6 +63,9 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     cacheStore = HiveCacheStore();
     await cacheStore.initialize();
     _addLog('💾 Initialized persistent cache store');
+    
+    // Show enhanced logging capabilities
+    _demonstrateEnhancedLogging();
 
     // Initialize HTTP clients
     _initializeClients();
@@ -113,7 +116,7 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
           storage: MemoryQueueStorage(),
           maxSize: 50,
         ),
-        logger: SmartLogger());
+        logger: SmartLogger()); // Uses ColorfulConsoleLogSink by default
 
     // Listen to events
     client.queue.events.listen(_onQueueEvent);
@@ -151,6 +154,24 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
       case ClientType.chopper:
         return 'Chopper';
     }
+  }
+
+  void _demonstrateEnhancedLogging() {
+    final logger = SmartLogger();
+    
+    // Demonstrate different log levels with emojis and colors
+    logger.info('🎨 Enhanced SmartLogger initialized with colorful output!');
+    logger.debug('🔧 Debug mode active - all HTTP requests will be logged');
+    logger.warning('⚠️ This is a warning message example');
+    logger.verbose('🔍 Verbose logging shows detailed information');
+    
+    // Demonstrate HTTP-specific logging
+    logger.httpRequest('GET', 'https://api.example.com/test', 
+      correlationId: 'demo-123');
+    logger.cacheHit('test-key', age: Duration(minutes: 5));
+    logger.cacheMiss('missing-key', reason: 'expired');
+    
+    _addLog('✨ Enhanced logging demonstration complete - check console for colorful output!');
   }
 
   void _addLog(String message) {

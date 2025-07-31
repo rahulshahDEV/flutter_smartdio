@@ -1,7 +1,7 @@
 name: flutter_smartdio
 description: A transport-agnostic HTTP wrapper that enhances ANY HTTP client with offline caching, request queuing, retry mechanisms, and comprehensive logging.
 version: 1.0.0
-homepage: https://github.com/your-org/flutter_smartdio
+homepage: https://github.com/rahulshahDEV/flutter_smartdio
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

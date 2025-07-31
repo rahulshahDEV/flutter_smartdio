@@ -693,6 +693,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- [Documentation](https://github.com/your-org/flutter_smartdio/wiki)
-- [Issue Tracker](https://github.com/your-org/flutter_smartdio/issues)
-- [Changelog](https://github.com/your-org/flutter_smartdio/blob/main/CHANGELOG.md)
+
+- [Issue Tracker](https://github.com/rahulshahDEV/flutter_smartdio/issues)
+- [Changelog](https://github.com/rahulshahDEV/flutter_smartdio/blob/main/CHANGELOG.md)
