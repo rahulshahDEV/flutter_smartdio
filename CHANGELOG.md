@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2024-01-15
+
+### Added
+- **Persistent Queue Storage**: Hive-based queue storage that survives app restarts
+  - New `QueueStorageType` enum with options: `persistent`, `memory`, `none`
+  - Default to persistent storage for better offline experience
+  - Configurable queue limits and automatic cleanup
+  - Visual test examples in Flutter app
+- **Enhanced Response Logging**: Intelligent object serialization in debug logs
+  - Display actual response data instead of "Instance of Object"
+  - Smart detection and serialization of custom objects with `toJson()` methods
+  - Dual logging: raw JSON response + transformed object data
+  - Fallback extraction for non-serializable objects
+  - Added `rawData` field to `SmartDioSuccess` for comprehensive logging
+
+### Changed
+- Request queue now defaults to persistent storage instead of memory-only
+- Logger shows both raw server response and transformed object data
+- Enhanced debug console output with better object representation
+
+### Improved
+- Better offline request handling with persistent queue storage
+- Debugging experience with detailed response data logging
+- Queue storage examples and visual testing in example app
+
 ## [1.0.0] - 2024-01-01
 
 ### Added

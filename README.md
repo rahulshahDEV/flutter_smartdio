@@ -33,7 +33,8 @@
 - **Never-crash philosophy** with structured error handling
 
 ### **📱 Offline-First Architecture**
-- **Request queuing** for offline scenarios
+- **Persistent request queuing** with Hive storage that survives app restarts
+- **Configurable storage options**: persistent, memory-only, or disabled
 - **Automatic queue processing** when connectivity returns
 - **Connectivity monitoring** with quality assessment
 - **Seamless online/offline transitions**
@@ -41,6 +42,9 @@
 ### **📊 Advanced Monitoring**
 - **Performance metrics** with response time tracking
 - **Success rate analytics** and failure reporting
+- **Enhanced response logging** that shows actual object data instead of "Instance of Object"
+- **Dual logging**: raw JSON response + transformed object data
+- **Smart object serialization** with automatic toJson() detection
 - **Colorized debug logging** with syntax-highlighted JSON and headers
 - **Comprehensive logging** with sensitive data protection
 - **Real-time event streaming** for monitoring
@@ -57,7 +61,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  flutter_smartdio: ^1.0.1
+  flutter_smartdio: ^1.0.4
 ```
 
 Then run:
@@ -83,6 +87,7 @@ final client = SmartDioClient(
     ),
     enableMetrics: true,
     enableRequestQueue: true,
+    queueStorageType: QueueStorageType.persistent, // Survives app restarts
   ),
   cacheStore: HiveCacheStore(), // Persistent cache
 );
@@ -98,16 +103,15 @@ final dioClient = SmartDioClient(
       initialDelay: Duration(milliseconds: 500),
     ),
     cachePolicy: CachePolicy.networkFirst(ttl: Duration(minutes: 10)),
-    logLevel: LogLevel.debug,
+    logLevel: LogLevel.debug, // Enable detailed response logging
     enableMetrics: true,
     enableDeduplication: true,
     enableRequestQueue: true,
+    queueStorageType: QueueStorageType.persistent, // Default, survives app restarts
+    maxQueueSize: 100,
+    maxQueueAge: Duration(days: 7),
   ),
   cacheStore: HiveCacheStore(),
-  requestQueue: RequestQueue(
-    storage: MemoryQueueStorage(),
-    maxSize: 50,
-  ),
 );
 ```
 
@@ -254,6 +258,48 @@ final RetryPolicy.custom(
 
 // No retry
 const RetryPolicy.none()
+```
+
+### Queue Storage Options
+
+```dart
+// Persistent storage (default) - survives app restarts
+SmartDioConfig(
+  queueStorageType: QueueStorageType.persistent,
+  maxQueueSize: 100,
+  maxQueueAge: Duration(days: 7),
+)
+
+// Memory-only storage - lost on app restart
+SmartDioConfig(
+  queueStorageType: QueueStorageType.memory,
+  maxQueueSize: 50,
+)
+
+// Disable queuing entirely
+SmartDioConfig(
+  queueStorageType: QueueStorageType.none,
+  enableRequestQueue: false,
+)
+```
+
+### Enhanced Debug Logging
+
+```dart
+// Enable detailed logging to see actual response data
+SmartDioConfig(
+  logLevel: LogLevel.debug, // Shows both raw JSON and transformed objects
+)
+
+// Example output:
+// 📥 Raw Response Data:
+// {
+//   "id": 1,
+//   "name": "John Doe",
+//   "email": "john@example.com"
+// }
+// 🔄 Transformed Response:
+// User(id: 1, name: John Doe, email: john@example.com)
 ```
 
 ## 📊 Monitoring & Analytics
