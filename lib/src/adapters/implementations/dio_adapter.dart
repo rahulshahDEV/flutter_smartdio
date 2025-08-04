@@ -44,6 +44,7 @@ class DioClientAdapter extends HttpClientAdapter {
 
       return SmartDioSuccess<T>(
         data: transformer(response.data),
+        rawData: response.data,
         statusCode: response.statusCode ?? 200,
         headers: _extractHeaders(response.headers),
         correlationId: request.correlationId,

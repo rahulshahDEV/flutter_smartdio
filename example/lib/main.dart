@@ -5,6 +5,7 @@ import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:flutter_smartdio/flutter_smartdio.dart';
 import 'package:http/http.dart' as http;
+import 'enhanced_logging_example.dart' as logging_example;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -499,6 +500,147 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
     });
   }
 
+  Future<void> _testQueueStorage() async {
+    _addLog('🚀 Testing Queue Storage Examples...');
+    _addLog('📋 Running queue storage demonstrations:');
+    
+    try {
+      // Test 1: Persistent Storage
+      _addLog('📦 Testing Persistent Storage...');
+      await _testPersistentStorage();
+      
+      // Test 2: Memory Storage  
+      _addLog('🧠 Testing Memory Storage...');
+      await _testMemoryStorage();
+      
+      // Test 3: No Storage
+      _addLog('🚫 Testing No Storage...');
+      await _testNoStorage();
+      
+      _addLog('✅ All Queue Storage tests completed!');
+      _addLog('📊 Current main client queue status:');
+      _addLog('  • Storage type: ${client.config.queueStorageType}');
+      _addLog('  • Current queue length: ${client.queue.length}');
+      _addLog('  • Max queue size: ${client.config.maxQueueSize}');
+      _addLog('  • Max queue age: ${client.config.maxQueueAge}');
+    } catch (e) {
+      _addLog('❌ Queue Storage test failed: ${e.toString()}');
+    }
+  }
+
+  Future<void> _testPersistentStorage() async {
+    const config = SmartDioConfig(
+      queueStorageType: QueueStorageType.persistent,
+      maxQueueSize: 50,
+      maxQueueAge: Duration(days: 3),
+      enableRequestQueue: true,
+    );
+
+    final testClient = SmartDioClient(
+      adapter: DioClientAdapter(dioInstance: dio.Dio()),
+      config: config,
+    );
+
+    _addLog('  • Queue storage: Persistent (Hive)');
+    _addLog('  • Max size: 50, Max age: 3 days');
+
+    // Force offline mode to test queuing
+    testClient.connectivity.setManualOfflineMode(true);
+    
+    try {
+      await testClient.post<Map<String, dynamic>>(
+        'https://jsonplaceholder.typicode.com/posts',
+        body: {'title': 'Persistent Test', 'body': 'Survives app restart'},
+        transformer: (data) => data as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _addLog('  ✓ Request queued (will survive restart): ${testClient.queue.length} items');
+    }
+
+    testClient.connectivity.setManualOfflineMode(false);
+    await testClient.dispose();
+  }
+
+  Future<void> _testMemoryStorage() async {
+    const config = SmartDioConfig(
+      queueStorageType: QueueStorageType.memory,
+      maxQueueSize: 100,
+      enableRequestQueue: true,
+    );
+
+    final testClient = SmartDioClient(
+      adapter: DioClientAdapter(dioInstance: dio.Dio()),
+      config: config,
+    );
+
+    _addLog('  • Queue storage: Memory only');
+    _addLog('  • Max size: 100');
+
+    testClient.connectivity.setManualOfflineMode(true);
+    
+    try {
+      await testClient.post<Map<String, dynamic>>(
+        'https://jsonplaceholder.typicode.com/posts',
+        body: {'title': 'Memory Test', 'body': 'Lost on restart'},
+        transformer: (data) => data as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _addLog('  ✓ Request queued in memory: ${testClient.queue.length} items');
+    }
+
+    testClient.connectivity.setManualOfflineMode(false);
+    await testClient.dispose();
+  }
+
+  Future<void> _testNoStorage() async {
+    const config = SmartDioConfig(
+      queueStorageType: QueueStorageType.none,
+      enableRequestQueue: false,
+    );
+
+    final testClient = SmartDioClient(
+      adapter: DioClientAdapter(dioInstance: dio.Dio()),
+      config: config,
+    );
+
+    _addLog('  • Queue storage: Disabled');
+
+    testClient.connectivity.setManualOfflineMode(true);
+    
+    try {
+      await testClient.post<Map<String, dynamic>>(
+        'https://jsonplaceholder.typicode.com/posts',
+        body: {'title': 'No Queue Test', 'body': 'Fails immediately'},
+        transformer: (data) => data as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _addLog('  ✗ Request failed immediately (no queuing): ${testClient.queue.length} items');
+    }
+
+    testClient.connectivity.setManualOfflineMode(false);
+    await testClient.dispose();
+  }
+
+  Future<void> _testEnhancedLogging() async {
+    _addLog('🚀 Testing Enhanced Logging...');
+    _addLog('📋 Running enhanced logging demonstrations:');
+    _addLog('💡 Check debug console for detailed response logging');
+    
+    try {
+      // Run the enhanced logging examples
+      await logging_example.main();
+      _addLog('✅ Enhanced Logging examples completed!');
+      _addLog('📝 Key improvements demonstrated:');
+      _addLog('  - Raw response data logging');
+      _addLog('  - Transformed object data logging');
+      _addLog('  - Custom object serialization');
+      _addLog('  - Fallback for non-serializable objects');
+      _addLog('🔍 Check the debug console for detailed logs');
+    } catch (e) {
+      _addLog('❌ Enhanced Logging test failed: ${e.toString()}');
+    }
+  }
+
   void _toggleOfflineMode() {
     setState(() {
       isOfflineMode = !isOfflineMode;
@@ -645,6 +787,16 @@ class _SmartDioTestScreenState extends State<SmartDioTestScreen> {
                     '🎯 Type Safety',
                     Colors.indigo,
                     _testTypesSafety,
+                  ),
+                  _buildTestButton(
+                    '📦 Queue Storage',
+                    Colors.deepPurple,
+                    _testQueueStorage,
+                  ),
+                  _buildTestButton(
+                    '📋 Enhanced Logging',
+                    Colors.amber,
+                    _testEnhancedLogging,
                   ),
                   _buildTestButton(
                     '🗑️ Clear Logs',

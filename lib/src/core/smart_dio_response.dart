@@ -96,11 +96,13 @@ final class SmartDioSuccess<T> extends SmartDioResponse<T> {
   final T data;
   final int statusCode;
   final Map<String, String> headers;
+  final dynamic rawData;
 
   const SmartDioSuccess({
     required this.data,
     required this.statusCode,
     this.headers = const {},
+    this.rawData,
     required super.correlationId,
     required super.timestamp,
     required super.duration,

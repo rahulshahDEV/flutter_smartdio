@@ -3,6 +3,16 @@ import '../retry/retry_policy.dart';
 import '../cache/cache_manager.dart';
 import '../logging/smart_logger.dart';
 
+/// Queue storage type options
+enum QueueStorageType {
+  /// Store requests only in memory (lost on app restart)
+  memory,
+  /// Store requests persistently using Hive (survives app restart)
+  persistent,
+  /// Disable request queuing entirely
+  none,
+}
+
 /// Configuration class for SmartDioClient that defines behavior for caching,
 /// retries, logging, and other advanced features.
 /// 
@@ -20,7 +30,9 @@ class SmartDioConfig {
   final bool enableDeduplication;
   final Duration deduplicationWindow;
   final bool enableRequestQueue;
+  final QueueStorageType queueStorageType;
   final int maxQueueSize;
+  final Duration maxQueueAge;
   final Duration connectivityCheckInterval;
   final List<String> sensitiveHeaders;
   final List<String> sensitiveBodyFields;
@@ -35,7 +47,9 @@ class SmartDioConfig {
     this.enableDeduplication = true,
     this.deduplicationWindow = const Duration(seconds: 5),
     this.enableRequestQueue = true,
+    this.queueStorageType = QueueStorageType.persistent,
     this.maxQueueSize = 100,
+    this.maxQueueAge = const Duration(days: 7),
     this.connectivityCheckInterval = const Duration(seconds: 10),
     this.sensitiveHeaders = const [
       'authorization',
@@ -63,7 +77,9 @@ class SmartDioConfig {
     bool? enableDeduplication,
     Duration? deduplicationWindow,
     bool? enableRequestQueue,
+    QueueStorageType? queueStorageType,
     int? maxQueueSize,
+    Duration? maxQueueAge,
     Duration? connectivityCheckInterval,
     List<String>? sensitiveHeaders,
     List<String>? sensitiveBodyFields,
@@ -78,7 +94,9 @@ class SmartDioConfig {
       enableDeduplication: enableDeduplication ?? this.enableDeduplication,
       deduplicationWindow: deduplicationWindow ?? this.deduplicationWindow,
       enableRequestQueue: enableRequestQueue ?? this.enableRequestQueue,
+      queueStorageType: queueStorageType ?? this.queueStorageType,
       maxQueueSize: maxQueueSize ?? this.maxQueueSize,
+      maxQueueAge: maxQueueAge ?? this.maxQueueAge,
       connectivityCheckInterval: connectivityCheckInterval ?? this.connectivityCheckInterval,
       sensitiveHeaders: sensitiveHeaders ?? this.sensitiveHeaders,
       sensitiveBodyFields: sensitiveBodyFields ?? this.sensitiveBodyFields,

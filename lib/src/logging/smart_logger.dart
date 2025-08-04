@@ -534,6 +534,7 @@ class SmartLogger {
     String? correlationId,
     Map<String, String>? headers,
     dynamic body,
+    dynamic rawBody,
     bool fromCache = false,
   }) {
     final emoji = _getStatusEmoji(statusCode);
@@ -545,7 +546,9 @@ class SmartLogger {
       'duration': '${duration.inMilliseconds}ms',
       'fromCache': fromCache,
       if (headers != null) 'headers': _sanitizeHeaders(headers),
-      if (body != null) 'body': _sanitizeBody(body),
+      if (rawBody != null) 'rawBody': _sanitizeBody(rawBody),
+      if (body != null && body != rawBody) 'transformedBody': _sanitizeBody(body),
+      if (body != null && rawBody == null) 'body': _sanitizeBody(body),
     };
     
     final logLevel = statusCode >= 400 ? LogLevel.warning : LogLevel.info;
@@ -575,13 +578,34 @@ class SmartLogger {
         );
       }
       
-      if (body != null) {
-        final sanitizedBody = _sanitizeBody(body);
-        final bodyStr = _formatColorizedJsonForLogging(sanitizedBody);
-        debug(
-          '${_applyDebugColor('📥 Response Body:', _magenta + _bold)}\n$bodyStr',
-          correlationId: correlationId,
-        );
+      if (body != null || rawBody != null) {
+        // Log raw response data if available (what came from the server)
+        if (rawBody != null) {
+          final sanitizedRawBody = _sanitizeBody(rawBody);
+          final rawBodyStr = _formatColorizedJsonForLogging(sanitizedRawBody);
+          debug(
+            '${_applyDebugColor('📥 Raw Response Data:', _magenta + _bold)}\n$rawBodyStr',
+            correlationId: correlationId,
+          );
+        }
+        
+        // Log transformed data if different from raw data
+        if (body != null && body != rawBody) {
+          final sanitizedBody = _sanitizeBody(body);
+          final bodyStr = _formatColorizedJsonForLogging(sanitizedBody);
+          debug(
+            '${_applyDebugColor('🔄 Transformed Response:', _cyan + _bold)}\n$bodyStr',
+            correlationId: correlationId,
+          );
+        } else if (body != null && rawBody == null) {
+          // Only transformed data available
+          final sanitizedBody = _sanitizeBody(body);
+          final bodyStr = _formatColorizedJsonForLogging(sanitizedBody);
+          debug(
+            '${_applyDebugColor('📥 Response Body:', _magenta + _bold)}\n$bodyStr',
+            correlationId: correlationId,
+          );
+        }
       }
     }
   }
@@ -763,6 +787,19 @@ class SmartLogger {
       }
     }
     
+    // Handle custom objects by trying to convert them to JSON-serializable format
+    if (body is! Map && body is! List && body is! num && body is! bool) {
+      try {
+        // Try to serialize the object to JSON to get readable data
+        final jsonString = jsonEncode(body);
+        final decoded = jsonDecode(jsonString);
+        return _sanitizeBodyData(decoded);
+      } catch (e) {
+        // If JSON serialization fails, try to extract readable info from the object
+        return _extractObjectInfo(body);
+      }
+    }
+    
     return _sanitizeBodyData(body);
   }
 
@@ -798,6 +835,91 @@ class SmartLogger {
     }
     
     return data;
+  }
+
+  /// Extract readable information from custom objects
+  Map<String, dynamic> _extractObjectInfo(dynamic object) {
+    final result = <String, dynamic>{};
+    
+    try {
+      // Get the runtime type
+      result['_type'] = object.runtimeType.toString();
+      
+      // Try to get object properties using reflection-like approach
+      if (object.toString() != 'Instance of ${object.runtimeType}') {
+        // If toString() is overridden, use that
+        result['_toString'] = object.toString();
+      }
+      
+      // Try to extract data if the object has a toJson method
+      try {
+        final toJsonMethod = object.toJson;
+        if (toJsonMethod is Function) {
+          final jsonData = toJsonMethod();
+          if (jsonData is Map<String, dynamic>) {
+            result.addAll(jsonData);
+          }
+        }
+      } catch (e) {
+        // toJson method doesn't exist or failed
+      }
+      
+      // Try to extract data if the object has a toMap method
+      try {
+        final toMapMethod = object.toMap;
+        if (toMapMethod is Function) {
+          final mapData = toMapMethod();
+          if (mapData is Map<String, dynamic>) {
+            result.addAll(mapData);
+          }
+        }
+      } catch (e) {
+        // toMap method doesn't exist or failed
+      }
+      
+      // If we still don't have meaningful data, try common property names
+      if (result.length <= 1) {
+        _tryExtractCommonProperties(object, result);
+      }
+      
+    } catch (e) {
+      result['_error'] = 'Failed to extract object info: ${e.toString()}';
+    }
+    
+    return result.isEmpty 
+        ? {'_type': object.runtimeType.toString(), '_info': 'Could not extract object data'}
+        : result;
+  }
+
+  /// Try to extract common properties from objects
+  void _tryExtractCommonProperties(dynamic object, Map<String, dynamic> result) {
+    final commonProperties = [
+      'id', 'name', 'title', 'email', 'username', 'firstName', 'lastName',
+      'description', 'value', 'data', 'content', 'message', 'status'
+    ];
+    
+    for (final prop in commonProperties) {
+      try {
+        // This is a simplified approach - in practice, you might need more sophisticated reflection
+        final value = _tryGetProperty(object, prop);
+        if (value != null) {
+          result[prop] = value;
+        }
+      } catch (e) {
+        // Property doesn't exist or can't be accessed
+      }
+    }
+  }
+
+  /// Attempt to get a property value from an object
+  dynamic _tryGetProperty(dynamic object, String propertyName) {
+    try {
+      // This is a basic attempt - doesn't use actual reflection
+      // In a real implementation, you might use mirrors or other reflection libraries
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   String _formatJsonForLogging(dynamic data, {int indent = 0}) {

@@ -26,6 +26,7 @@ export 'src/cache/implementations/memory_cache_store.dart';
 export 'src/cache/implementations/hive_cache_store.dart';
 export 'src/queue/request_queue.dart';
 export 'src/queue/implementations/memory_queue_storage.dart';
+export 'src/queue/implementations/hive_queue_storage.dart';
 export 'src/connectivity/connectivity_manager.dart';
 export 'src/metrics/performance_metrics.dart';
 export 'src/interceptors/interceptor.dart';

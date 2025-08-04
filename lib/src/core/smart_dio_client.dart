@@ -50,7 +50,11 @@ class SmartDioClient {
         _logger = logger ?? SmartLogger(),
         _metrics = metrics ?? PerformanceMetrics(),
         _connectivityManager = connectivityManager ?? ConnectivityManager(),
-        _requestQueue = requestQueue ?? RequestQueue(),
+        _requestQueue = requestQueue ?? RequestQueue.withStorageType(
+          storageType: config?.queueStorageType ?? QueueStorageType.persistent,
+          maxSize: config?.maxQueueSize ?? 100,
+          maxAge: config?.maxQueueAge ?? const Duration(days: 7),
+        ),
         _cacheStore = cacheStore,
         _interceptors = InterceptorChain() {
     if (interceptors != null) {
@@ -147,6 +151,7 @@ class SmartDioClient {
             correlationId: correlationId,
             headers: success.headers,
             body: success.data,
+            rawBody: success.rawData,
             fromCache: true,
           );
           
@@ -178,6 +183,7 @@ class SmartDioClient {
           correlationId: correlationId,
           headers: success.headers,
           body: success.data,
+          rawBody: success.rawData,
           fromCache: response.isFromCache,
         );
       } else {
@@ -465,6 +471,7 @@ class SmartDioClient {
 
       return SmartDioSuccess<T>(
         data: transformer(entry.data),
+        rawData: entry.data,
         statusCode: 200,
         headers: entry.headers,
         correlationId: request.correlationId,

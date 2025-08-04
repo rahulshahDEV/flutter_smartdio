@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
 import '../core/smart_dio_request.dart';
+import '../core/smart_dio_config.dart';
+import 'implementations/memory_queue_storage.dart';
+import 'implementations/hive_queue_storage.dart';
 
 /// Represents a queued HTTP request waiting to be executed.
 /// 
@@ -129,6 +132,35 @@ class RequestQueue {
   }) : _eventController = StreamController<QueueEvent>.broadcast() {
     _startCleanupTimer();
     _loadFromStorage();
+  }
+
+  /// Factory constructor to create RequestQueue with storage type
+  factory RequestQueue.withStorageType({
+    required QueueStorageType storageType,
+    int maxSize = 100,
+    Duration maxAge = const Duration(days: 7),
+    Set<String> queueMethods = const {'POST', 'PUT', 'PATCH', 'DELETE'},
+  }) {
+    RequestQueueStorage? storage;
+    
+    switch (storageType) {
+      case QueueStorageType.memory:
+        storage = MemoryQueueStorage();
+        break;
+      case QueueStorageType.persistent:
+        storage = HiveQueueStorage();
+        break;
+      case QueueStorageType.none:
+        storage = null;
+        break;
+    }
+    
+    return RequestQueue(
+      storage: storage,
+      maxSize: maxSize,
+      maxAge: maxAge,
+      queueMethods: queueMethods,
+    );
   }
 
   Stream<QueueEvent> get events => _eventController.stream;
